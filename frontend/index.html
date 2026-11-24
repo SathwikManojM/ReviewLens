@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ReviewLens - aspect-based sentiment and voice-of-customer analytics for product reviews." />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23111113'/><circle cx='14' cy='14' r='6.5' fill='none' stroke='white' stroke-width='2.6'/><path d='M19 19l5.5 5.5' stroke='%232997ff' stroke-width='2.6' stroke-linecap='round'/></svg>" />
+    <title>ReviewLens</title>
+    <script>
+      try {
+        var m = localStorage.getItem('rl_theme') || 'system';
+        var dark = m === 'dark' || (m === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

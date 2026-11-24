@@ -1,0 +1,113 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ReviewLens 2.0 design tokens. Light: warm off-white. Dark: charcoal. Admin portal: indigo accent. */
+@theme inline {
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", ui-sans-serif, sans-serif;
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-subtle: var(--subtle);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-neu: var(--neu);
+  --color-pos-soft: var(--pos-soft);
+  --color-neg-soft: var(--neg-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.04), 0 10px 30px -18px rgb(0 0 0 / 0.18);
+  --shadow-pop: 0 18px 50px -12px rgb(0 0 0 / 0.28), 0 2px 6px rgb(0 0 0 / 0.06);
+}
+
+:root {
+  color-scheme: light;
+  --canvas: #fafaf9;
+  --surface: #ffffff;
+  --subtle: #f4f4f3;
+  --muted: #ececea;
+  --line: rgb(17 17 19 / 0.08);
+  --line-strong: rgb(17 17 19 / 0.15);
+  --ink: #111113;
+  --ink-2: #57575e;
+  --ink-3: #8c8c94;
+  --accent: #0071e3;
+  --accent-ink: #0062c4;
+  --accent-soft: #e9f2fd;
+  --pos: #2a78d6;
+  --neg: #e34948;
+  --neu: #a3a29c;
+  --pos-soft: #eaf1fb;
+  --neg-soft: #fdeeee;
+  --success: #1a8f4c;
+  --success-soft: #e7f5ec;
+  --warning: #b77900;
+  --warning-soft: #fdf4e1;
+  --danger: #d03b3b;
+}
+
+.dark {
+  color-scheme: dark;
+  --canvas: #0c0c0e;
+  --surface: #151517;
+  --subtle: #1b1b1e;
+  --muted: #242428;
+  --line: rgb(255 255 255 / 0.08);
+  --line-strong: rgb(255 255 255 / 0.15);
+  --ink: #ededf0;
+  --ink-2: #a3a3ab;
+  --ink-3: #6f6f78;
+  --accent: #2997ff;
+  --accent-ink: #64b0ff;
+  --accent-soft: rgb(41 151 255 / 0.14);
+  --pos: #3987e5;
+  --neg: #e66767;
+  --neu: #6f6e69;
+  --pos-soft: rgb(57 135 229 / 0.15);
+  --neg-soft: rgb(230 103 103 / 0.15);
+  --success: #3dbc76;
+  --success-soft: rgb(61 188 118 / 0.14);
+  --warning: #e0a82e;
+  --warning-soft: rgb(224 168 46 / 0.14);
+  --danger: #ef5b5b;
+}
+
+[data-portal="admin"] { --accent: #5856d6; --accent-ink: #4744c4; --accent-soft: #efeefc; }
+.dark [data-portal="admin"] { --accent: #7d7aff; --accent-ink: #a5a3ff; --accent-soft: rgb(125 122 255 / 0.16); }
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-feature-settings: "cv11", "ss01", "ss03";
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+  input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.55; cursor: pointer; }
+  .dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+}
+
+@layer components {
+  .card { @apply rounded-2xl border border-line bg-surface shadow-soft; }
+  .eyebrow { @apply text-[11px] font-semibold tracking-[0.08em] uppercase text-ink-3; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .hairline { background: linear-gradient(90deg, transparent, var(--line-strong), transparent); height: 1px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
