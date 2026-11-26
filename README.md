@@ -196,3 +196,29 @@ settings validation, read-only audit logs and absence of secrets in responses.
 
 Use publicly available datasets — ReviewLens does not scrape Amazon. *Consumer Reviews of Amazon Products* (Datafiniti, Kaggle) uploads
 directly; *Amazon Reviews 2023* (McAuley Lab) JSONL files can be converted with `sample-data/jsonl_to_csv.py`.
+
+## Large dataset ingest (JSONL/NDJSON/GZIP)
+
+ReviewLens now supports streaming ingestion for:
+- .csv / .tsv / .txt
+- .jsonl
+- .ndjson
+- .jsonl.gz
+
+The backend never loads the full dataset in RAM. Files are stored on disk, parsed as streams, and processed in batches before NLP and MongoDB writes.
+
+### Amazon Reviews 2023 mapping
+
+Automatic field detection includes: asin, parent_asin, title, text, rating, timestamp, user_id, helpful_vote, verified_purchase.
+
+Mapping behavior:
+- product_id: parent_asin (fallback: asin)
+- product_name: product metadata fields when available
+- review_text: text
+- rating: rating
+- review_date: unix seconds and unix milliseconds are both supported
+
+### Upload / format settings
+
+Admin settings now support format toggles for csv, tsv, txt, jsonl, jsonl.gz and ndjson, with upload-size limits up to 8192 MB.
+

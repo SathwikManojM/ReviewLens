@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 /** REST client for the Spring Boot API. The browser never connects to MongoDB. */
-const api = axios.create({ baseURL: '/api' })
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+const api = axios.create({ baseURL: BASE_URL })
 const KEY = 'rl_token'
 
 export const session = {

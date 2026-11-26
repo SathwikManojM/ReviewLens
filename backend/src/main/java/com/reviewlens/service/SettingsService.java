@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -22,6 +23,7 @@ import java.util.Set;
 @Service
 public class SettingsService {
     public static final Set<String> FLAGS = Set.copyOf(SystemSettings.defaultFlags().keySet());
+    public static final List<String> DEFAULT_FORMATS = List.of("csv", "tsv", "txt", "jsonl", "jsonl.gz", "ndjson");
 
     private final SettingsRepository repo;
     private final AuditService audit;
@@ -40,6 +42,7 @@ public class SettingsService {
         if (s == null) {
             s = repo.findById(SystemSettings.GLOBAL).orElseGet(() -> repo.save(SystemSettings.defaults(defaultMaxReviews)));
             if (s.getFeatureFlags() == null) s.setFeatureFlags(SystemSettings.defaultFlags());
+            if (s.getAllowedFormats() == null || s.getAllowedFormats().isEmpty()) s.setAllowedFormats(DEFAULT_FORMATS);
             cache = s;
         }
         return s;
@@ -76,7 +79,7 @@ public class SettingsService {
         for (String k : u.featureFlags().keySet()) {
             if (!FLAGS.contains(k)) throw ApiException.badRequest("Unknown feature flag: " + k);
         }
-        List<String> formats = u.allowedFormats().stream().map(f -> f.toLowerCase(Locale.ROOT)).distinct().toList();
+        List<String> formats = normalizeFormats(u.allowedFormats());
         SystemSettings cur = repo.findById(SystemSettings.GLOBAL).orElseGet(() -> SystemSettings.defaults(defaultMaxReviews));
         Map<String, Boolean> oldFlags = new LinkedHashMap<>(SystemSettings.defaultFlags());
         if (cur.getFeatureFlags() != null) oldFlags.putAll(cur.getFeatureFlags());
@@ -121,6 +124,18 @@ public class SettingsService {
         return toDto(cur);
     }
 
+    private static List<String> normalizeFormats(List<String> formats) {
+        Set<String> out = new LinkedHashSet<>();
+        for (String f : formats) {
+            if (f == null || f.isBlank()) continue;
+            String lower = f.trim().toLowerCase(Locale.ROOT);
+            if (!DEFAULT_FORMATS.contains(lower)) throw ApiException.badRequest("Unsupported format: " + f);
+            out.add(lower);
+        }
+        if (out.isEmpty()) throw ApiException.badRequest("At least one file format must be enabled");
+        return List.copyOf(out);
+    }
+
     private static void diff(Map<String, Object> changes, String key, Object from, Object to) {
         if (!Objects.equals(from, to)) changes.put(key, Map.of("from", String.valueOf(from), "to", String.valueOf(to)));
     }
@@ -129,7 +144,7 @@ public class SettingsService {
         Map<String, Boolean> flags = new LinkedHashMap<>(SystemSettings.defaultFlags());
         if (s.getFeatureFlags() != null) flags.putAll(s.getFeatureFlags());
         return new SettingsDto(s.getMaxUploadSizeMb(), s.getMaxReviewsPerDataset(), s.getMaxDatasetsPerUser(),
-                s.getMaxAnalysesPerUserPerDay(), s.getAllowedFormats(), s.getMaxConcurrentJobs(), s.isMaintenanceMode(),
-                s.getMaintenanceMessage(), flags, s.getUpdatedAt(), s.getUpdatedBy());
+                s.getMaxAnalysesPerUserPerDay(), normalizeFormats(s.getAllowedFormats() == null ? DEFAULT_FORMATS : s.getAllowedFormats()),
+                s.getMaxConcurrentJobs(), s.isMaintenanceMode(), s.getMaintenanceMessage(), flags, s.getUpdatedAt(), s.getUpdatedBy());
     }
 }

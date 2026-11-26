@@ -44,7 +44,7 @@ import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
 
 /**
- * Runs one analysis job: parse CSV -> bulk-insert products & reviews -> NLP in batches (bulk update reviews,
+ * Runs one analysis job: parse file -> bulk-insert products & reviews -> NLP in batches (bulk update reviews,
  * bulk insert aspectResults) -> aggregate product statistics -> dataset keywords.
  * Memory use is bounded: reviews are streamed from MongoDB by _id in batches, never loaded all at once.
  */
@@ -102,13 +102,11 @@ public class ProcessingService {
         String dsId = ds.getId();
         ObjectId dsOid = new ObjectId(dsId);
 
-        // 0. reset previous results (re-runs)
         cleanup.clearAnalysis(dsId);
         stage(job.getId(), AnalysisJob.Stage.PARSING, 0, 0);
         updateDataset(dsId, new Update().set("status", Dataset.Status.PARSING).set("errorMessage", null)
                 .set("processedReviews", 0).set("completedAt", null));
 
-        // 1. parse the CSV, bulk-insert products and raw reviews
         int maxRows = settings.get().getMaxReviewsPerDataset();
         Map<String, String> productIds = new HashMap<>();
         Set<String> seen = new HashSet<>();
@@ -119,23 +117,31 @@ public class ProcessingService {
             List<Product> newProducts = new ArrayList<>();
             List<Review> batch = new ArrayList<>(chunk.size());
             for (CsvReviewParser.ParsedRow row : chunk) {
-                String pid = productIds.computeIfAbsent(row.productKey(), k -> {
+                String productKey = row.parentProductKey() != null && !row.parentProductKey().isBlank()
+                        ? row.parentProductKey() : row.productKey();
+                if (productKey == null || productKey.isBlank()) productKey = "UNKNOWN";
+
+                String pid = productIds.computeIfAbsent(productKey, k -> {
                     Product p = new Product();
                     p.setId(new ObjectId().toHexString());
                     p.setDatasetId(dsId);
                     p.setOwnerId(ds.getOwnerId());
                     p.setExternalId("UNKNOWN".equals(k) ? null : k);
-                    p.setName(row.productName());
+                    p.setName(row.productName() == null || row.productName().isBlank() ? ("Product " + k) : row.productName());
                     p.setBrand(row.brand());
                     p.setCategory(row.category());
                     newProducts.add(p);
                     return p.getId();
                 });
+
                 Review r = new Review();
                 r.setId(new ObjectId().toHexString());
                 r.setDatasetId(dsId);
                 r.setProductId(pid);
                 r.setReviewer(row.reviewer());
+                r.setExternalReviewId(row.sourceReviewId());
+                r.setHelpfulVote(row.helpfulVote());
+                r.setVerifiedPurchase(row.verifiedPurchase());
                 r.setRating(row.rating());
                 r.setTitle(row.title());
                 r.setText(row.text());
@@ -143,8 +149,12 @@ public class ProcessingService {
                 r.setReviewMonth(MongoSupport.month(row.date()));
                 String hash = hash(row.text());
                 r.setTextHash(hash);
+                String fp = fingerprint(row, hash);
+                r.setFingerprint(fp);
+                if (row.sourceMetadata() != null) r.setSourceMetadata(row.sourceMetadata());
+
                 List<String> flags = new ArrayList<>();
-                if (!seen.add(pid + ':' + hash)) {
+                if (!seen.add(fp)) {
                     r.setDuplicate(true);
                     flags.add("DUPLICATE");
                     duplicates[0]++;
@@ -164,7 +174,6 @@ public class ProcessingService {
                 .set("columnMapping", summary.mapping()).set("status", Dataset.Status.ANALYZING));
         stage(job.getId(), AnalysisJob.Stage.ANALYZING, total, 0);
 
-        // 2. aspect-based sentiment analysis, streamed in batches
         MongoCollection<Document> reviewsColl = mongo.getCollection("reviews");
         MongoCollection<Document> aspectColl = mongo.getCollection("aspectResults");
         ObjectId last = null;
@@ -225,7 +234,6 @@ public class ProcessingService {
             updateDataset(dsId, new Update().set("processedReviews", done));
         }
 
-        // 3. denormalised product statistics + dataset date span
         stage(job.getId(), AnalysisJob.Stage.AGGREGATING, total, done);
         cleanup.recomputeProductStats(dsId, null);
         Document span = MongoSupport.first(reviewsColl.aggregate(List.of(
@@ -233,7 +241,6 @@ public class ProcessingService {
                 new Document("$group", new Document("_id", null).append("min", new Document("$min", "$reviewDate"))
                         .append("max", new Document("$max", "$reviewDate"))))));
 
-        // 4. dataset-level keyword analysis
         stage(job.getId(), AnalysisJob.Stage.KEYWORDS, total, done);
         keywords.computeAndStore(dsId, null, new Document("datasetId", dsOid), 8000);
 
@@ -246,6 +253,16 @@ public class ProcessingService {
             complete.set("minReviewDate", min == null ? null : min.toInstant()).set("maxReviewDate", max == null ? null : max.toInstant());
         }
         updateDataset(dsId, complete);
+    }
+
+    private static String fingerprint(CsvReviewParser.ParsedRow row, String textHash) {
+        if (row.sourceReviewId() != null && !row.sourceReviewId().isBlank()) {
+            return "rid:" + row.sourceReviewId().trim().toLowerCase(Locale.ROOT);
+        }
+        String reviewer = row.reviewer() == null ? "" : row.reviewer().trim().toLowerCase(Locale.ROOT);
+        String rating = row.rating() == null ? "" : String.valueOf(row.rating());
+        String day = row.date() == null ? "" : row.date().toString();
+        return "txt:" + textHash + ':' + reviewer + ':' + rating + ':' + day;
     }
 
     private void ensureExists(String dsId) {
@@ -269,7 +286,6 @@ public class ProcessingService {
         mongo.updateFirst(query(where("_id").is(dsId)), update, Dataset.class);
     }
 
-    /** The review title often carries the strongest opinion ("Battery is a joke") - analyse it too. */
     static String joinTitle(String title, String text) {
         if (text == null) return title == null ? "" : title;
         if (title == null || title.isBlank() || text.startsWith(title)) return text;

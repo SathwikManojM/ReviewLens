@@ -9,7 +9,9 @@ import org.springframework.data.mongodb.core.mapping.FieldType;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** Collection "reviews": one customer review with its overall and embedded aspect-level results. */
 @Document(collection = "reviews")
@@ -19,6 +21,7 @@ import java.util.List;
         @CompoundIndex(name = "dataset_sentiment", def = "{'datasetId': 1, 'overallSentiment': 1}"),
         @CompoundIndex(name = "dataset_aspect", def = "{'datasetId': 1, 'aspects.aspect': 1, 'aspects.sentiment': 1}"),
         @CompoundIndex(name = "dataset_hash", def = "{'datasetId': 1, 'textHash': 1}"),
+        @CompoundIndex(name = "dataset_fingerprint", def = "{'datasetId': 1, 'fingerprint': 1}"),
         @CompoundIndex(name = "dataset_flags", def = "{'datasetId': 1, 'qualityFlags': 1}"),
         @CompoundIndex(name = "flags", def = "{'qualityFlags': 1}"),
         @CompoundIndex(name = "product", def = "{'productId': 1}")
@@ -31,6 +34,9 @@ public class Review {
     @Field(targetType = FieldType.OBJECT_ID)
     private String productId;
     private String reviewer;
+    private String externalReviewId;
+    private Integer helpfulVote;
+    private Boolean verifiedPurchase;
     private Integer rating;
     private String title;
     private String text;
@@ -42,11 +48,15 @@ public class Review {
     private Sentiment overallSentiment;
     private Double overallScore;
     private List<AspectMention> aspects = new ArrayList<>();
-    /** SHA-1 of the normalised text; used for duplicate detection. */
+    /** SHA-1 of the normalised text; used for duplicate detection and diagnostics. */
     private String textHash;
+    /** Stable per-dataset fingerprint derived from source id or normalized content. */
+    private String fingerprint;
     private boolean duplicate;
     /** DUPLICATE, TOO_SHORT, NO_RATING, NO_ASPECTS */
     private List<String> qualityFlags = new ArrayList<>();
+    /** Original source metadata retained for traceability (asin/parent_asin/helpful_vote/...). */
+    private Map<String, Object> sourceMetadata = new LinkedHashMap<>();
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -56,6 +66,12 @@ public class Review {
     public void setProductId(String productId) { this.productId = productId; }
     public String getReviewer() { return reviewer; }
     public void setReviewer(String reviewer) { this.reviewer = reviewer; }
+    public String getExternalReviewId() { return externalReviewId; }
+    public void setExternalReviewId(String externalReviewId) { this.externalReviewId = externalReviewId; }
+    public Integer getHelpfulVote() { return helpfulVote; }
+    public void setHelpfulVote(Integer helpfulVote) { this.helpfulVote = helpfulVote; }
+    public Boolean getVerifiedPurchase() { return verifiedPurchase; }
+    public void setVerifiedPurchase(Boolean verifiedPurchase) { this.verifiedPurchase = verifiedPurchase; }
     public Integer getRating() { return rating; }
     public void setRating(Integer rating) { this.rating = rating; }
     public String getTitle() { return title; }
@@ -76,8 +92,12 @@ public class Review {
     public void setAspects(List<AspectMention> aspects) { this.aspects = aspects; }
     public String getTextHash() { return textHash; }
     public void setTextHash(String textHash) { this.textHash = textHash; }
+    public String getFingerprint() { return fingerprint; }
+    public void setFingerprint(String fingerprint) { this.fingerprint = fingerprint; }
     public boolean isDuplicate() { return duplicate; }
     public void setDuplicate(boolean duplicate) { this.duplicate = duplicate; }
     public List<String> getQualityFlags() { return qualityFlags; }
     public void setQualityFlags(List<String> qualityFlags) { this.qualityFlags = qualityFlags; }
+    public Map<String, Object> getSourceMetadata() { return sourceMetadata; }
+    public void setSourceMetadata(Map<String, Object> sourceMetadata) { this.sourceMetadata = sourceMetadata; }
 }

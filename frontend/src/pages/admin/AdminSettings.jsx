@@ -7,7 +7,7 @@ import { PageHeader } from '../../components/layout'
 import { Button, Card, CardHeader, ConfirmationDialog, ErrorState, Field, Input, LoadingSkeleton, Switch, Textarea, cx } from '../../components/ui'
 
 const NUMBERS = [
-  ['maxUploadSizeMb', 'Maximum upload size (MB)', 1, 300, 'Hard ceiling of the server is 300 MB'],
+  ['maxUploadSizeMb', 'Maximum upload size (MB)', 1, 8192, 'Use chunked uploads for multi-GB datasets'],
   ['maxReviewsPerDataset', 'Maximum reviews per dataset', 100, 200000, 'Rows beyond this limit are not analysed'],
   ['maxConcurrentJobs', 'Concurrent analysis jobs', 1, 8, 'Jobs above this number wait in the queue'],
   ['maxDatasetsPerUser', 'Datasets per user', 1, 1000, 'Usage limit per account'],
@@ -71,7 +71,7 @@ export default function AdminSettings() {
             ))}
             <Field label="Allowed dataset formats" error={form.allowedFormats.length === 0 ? 'Select at least one format' : ''}>
               <div className="flex gap-2">
-                {['csv', 'tsv', 'txt'].map((f) => (
+                {['csv', 'tsv', 'txt', 'jsonl', 'jsonl.gz', 'ndjson'].map((f) => (
                   <button key={f} type="button" onClick={() => toggleFormat(f)} aria-pressed={form.allowedFormats.includes(f)}
                     className={cx('rounded-lg border px-3 py-1.5 text-[13px] font-medium transition', form.allowedFormats.includes(f) ? 'border-accent bg-accent-soft text-accent-ink' : 'border-line text-ink-3')}>.{f}</button>
                 ))}
@@ -108,3 +108,4 @@ export default function AdminSettings() {
     </>
   )
 }
+

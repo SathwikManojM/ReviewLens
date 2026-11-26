@@ -32,7 +32,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Module 2 - dataset management for the signed-in user (every operation is ownership-checked). */
+/** Dataset management for the signed-in user (every operation is ownership-checked). */
 @Service
 public class DatasetService {
     private final DatasetRepository datasets;
@@ -67,7 +67,7 @@ public class DatasetService {
         checkFormat(name, settings.get());
         Path tmp = null;
         try {
-            tmp = Files.createTempFile(uploadDir, "preview-", ".tmp");
+            tmp = Files.createTempFile(uploadDir, "preview-", ".tmp_" + sanitizeName(name));
             sample.transferTo(tmp);
             CsvReviewParser.Preview p = parser.preview(tmp, 8);
             return new PreviewDto(name, p.delimiter(), p.columns(), p.detected(), p.rows(), CsvReviewParser.FIELDS, p.truncated());
@@ -79,7 +79,7 @@ public class DatasetService {
     }
 
     public DatasetDto upload(AuthUser user, MultipartFile file, String name, Map<String, String> mapping) {
-        if (file == null || file.isEmpty()) throw ApiException.badRequest("Please choose a CSV file to upload");
+        if (file == null || file.isEmpty()) throw ApiException.badRequest("Please choose a file to upload");
         SystemSettings s = settings.get();
         String original = Optional.ofNullable(file.getOriginalFilename()).orElse("dataset.csv");
         checkFormat(original, s);
@@ -93,28 +93,33 @@ public class DatasetService {
         }
         jobService.checkDailyLimit(user.id());
 
-        String safe = original.replaceAll("[^A-Za-z0-9._-]", "_");
+        String safe = sanitizeName(original);
         Path target = uploadDir.resolve(UUID.randomUUID() + "_" + safe);
         try {
             file.transferTo(target);
         } catch (IOException e) {
             throw ApiException.badRequest("Could not store the file: " + e.getMessage());
         }
+        return createFromStoredFile(user, target, original, file.getSize(), name, mapping);
+    }
+
+    public DatasetDto createFromStoredFile(AuthUser user, Path filePath, String originalName, long fileSize,
+                                           String name, Map<String, String> mapping) {
         Map<String, String> resolved;
         try {
-            resolved = parser.resolveMapping(target, mapping);
+            resolved = parser.resolveMapping(filePath, mapping);
         } catch (ApiException e) {
-            cleanup.deleteFile(target.toString());
+            cleanup.deleteFile(filePath.toString());
             throw e;
         }
         boolean overridden = mapping != null && mapping.values().stream().anyMatch(v -> v != null && !v.isBlank());
 
         Dataset d = new Dataset();
         d.setOwnerId(user.id());
-        d.setName(name == null || name.isBlank() ? original.replaceAll("\\.[^.]+$", "") : name.trim());
-        d.setFileName(original);
-        d.setFileSize(file.getSize());
-        d.setStoredPath(target.toString());
+        d.setName(name == null || name.isBlank() ? originalName.replaceAll("\\.[^.]+$", "") : name.trim());
+        d.setFileName(originalName);
+        d.setFileSize(fileSize);
+        d.setStoredPath(filePath.toString());
         d.setColumnMapping(resolved);
         d.setMappingOverridden(overridden);
         d.setStatus(Dataset.Status.QUEUED);
@@ -173,12 +178,17 @@ public class DatasetService {
         return map;
     }
 
-    private static void checkFormat(String fileName, SystemSettings s) {
-        String lower = fileName.toLowerCase(Locale.ROOT);
-        String ext = lower.contains(".") ? lower.substring(lower.lastIndexOf('.') + 1) : "";
-        if (!s.getAllowedFormats().contains(ext)) {
-            throw ApiException.badRequest("Unsupported file type ." + ext + ". Allowed formats: " + String.join(", ", s.getAllowedFormats()));
+    private void checkFormat(String fileName, SystemSettings s) {
+        String key = parser.formatKey(fileName);
+        List<String> allowed = s.getAllowedFormats().stream().map(v -> v.toLowerCase(Locale.ROOT)).toList();
+        if (!allowed.contains(key)) {
+            throw ApiException.badRequest("Unsupported file type for this workspace: " + key
+                    + ". Allowed formats: " + String.join(", ", allowed));
         }
+    }
+
+    private static String sanitizeName(String original) {
+        return original.replaceAll("[^A-Za-z0-9._-]", "_");
     }
 
     public static ProductDto toProductDto(Product p) {

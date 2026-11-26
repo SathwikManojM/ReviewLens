@@ -14,7 +14,7 @@
 	<name>reviewlens</name>
 	<description>ReviewLens 2.0 - aspect-based sentiment and voice-of-customer analytics (Spring Boot + MongoDB)</description>
 	<properties>
-		<java.version>25</java.version>
+		<java.version>21</java.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -34,6 +34,9 @@
 			<artifactId>spring-boot-starter-webmvc</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+		</dependency>		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-csv</artifactId>
 			<version>1.14.0</version>
@@ -71,3 +74,5 @@
 	</build>
 
 </project>
+
+

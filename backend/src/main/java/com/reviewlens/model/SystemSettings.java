@@ -16,11 +16,11 @@ public class SystemSettings {
 
     @Id
     private String id = GLOBAL;
-    private int maxUploadSizeMb = 300;
+    private int maxUploadSizeMb = 5120;
     private int maxReviewsPerDataset = 50000;
     private int maxDatasetsPerUser = 50;
     private int maxAnalysesPerUserPerDay = 30;
-    private List<String> allowedFormats = new ArrayList<>(List.of("csv", "tsv", "txt"));
+    private List<String> allowedFormats = new ArrayList<>(List.of("csv", "tsv", "txt", "jsonl", "jsonl.gz", "ndjson"));
     private int maxConcurrentJobs = 2;
     private boolean maintenanceMode;
     private String maintenanceMessage = "ReviewLens is undergoing scheduled maintenance. Please check back shortly.";
@@ -69,3 +69,4 @@ public class SystemSettings {
     public String getUpdatedBy() { return updatedBy; }
     public void setUpdatedBy(String v) { this.updatedBy = v; }
 }
+

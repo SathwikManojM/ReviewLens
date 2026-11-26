@@ -93,14 +93,15 @@ public final class AdminDtos {
                               boolean maintenanceMode, String maintenanceMessage, Map<String, Boolean> featureFlags,
                               Instant updatedAt, String updatedBy) {}
 
-    public record SettingsUpdate(@Min(1) @Max(300) int maxUploadSizeMb,
+    public record SettingsUpdate(@Min(1) @Max(8192) int maxUploadSizeMb,
                                  @Min(100) @Max(200000) int maxReviewsPerDataset,
                                  @Min(1) @Max(1000) int maxDatasetsPerUser,
                                  @Min(1) @Max(1000) int maxAnalysesPerUserPerDay,
-                                 @NotEmpty List<@Pattern(regexp = "(?i)csv|tsv|txt") String> allowedFormats,
+                                 @NotEmpty List<@Pattern(regexp = "(?i)csv|tsv|txt|jsonl|jsonl\\.gz|ndjson") String> allowedFormats,
                                  @Min(1) @Max(8) int maxConcurrentJobs,
                                  boolean maintenanceMode,
                                  @Size(max = 300) String maintenanceMessage,
                                  @NotNull Map<String, Boolean> featureFlags,
                                  boolean confirm) {}
 }
+
